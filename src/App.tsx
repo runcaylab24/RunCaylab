@@ -79,6 +79,67 @@ function StarRating({ count = 5 }) {
   return <span style={{ color: "#f5a623", letterSpacing: 1, fontSize: 15 }}>{"★".repeat(count)}</span>;
 }
 
+function ParticlesBg() {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const canvas = document.getElementById("particles-canvas") as HTMLCanvasElement;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    let animId: number;
+    const resize = () => { canvas.width = canvas.offsetWidth; canvas.height = canvas.offsetHeight; };
+    resize();
+    window.addEventListener("resize", resize);
+    const TOTAL = 90;
+    const particles = Array.from({ length: TOTAL }, () => ({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height,
+      r: Math.random() * 2 + 0.5,
+      dx: (Math.random() - 0.5) * 0.4,
+      dy: (Math.random() - 0.5) * 0.4,
+      opacity: Math.random() * 0.6 + 0.2,
+      color: Math.random() > 0.7 ? "#f5a623" : Math.random() > 0.5 ? "#4a9eff" : "#ffffff",
+    }));
+    const draw = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      particles.forEach(p => {
+        p.x += p.dx; p.y += p.dy;
+        if (p.x < 0) p.x = canvas.width;
+        if (p.x > canvas.width) p.x = 0;
+        if (p.y < 0) p.y = canvas.height;
+        if (p.y > canvas.height) p.y = 0;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fillStyle = p.color;
+        ctx.globalAlpha = p.opacity;
+        ctx.fill();
+      });
+      // Draw connecting lines between close particles
+      ctx.globalAlpha = 1;
+      for (let i = 0; i < particles.length; i++) {
+        for (let j = i + 1; j < particles.length; j++) {
+          const dx = particles[i].x - particles[j].x;
+          const dy = particles[i].y - particles[j].y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < 100) {
+            ctx.beginPath();
+            ctx.moveTo(particles[i].x, particles[i].y);
+            ctx.lineTo(particles[j].x, particles[j].y);
+            ctx.strokeStyle = "#f5a623";
+            ctx.globalAlpha = (1 - dist / 100) * 0.12;
+            ctx.lineWidth = 0.5;
+            ctx.stroke();
+          }
+        }
+      }
+      animId = requestAnimationFrame(draw);
+    };
+    draw();
+    return () => { cancelAnimationFrame(animId); window.removeEventListener("resize", resize); };
+  }, []);
+  return null;
+}
+
 export default function RunCaylab() {
   const [activeNav, setActiveNav] = useState("Home");
   const [menuOpen, setMenuOpen] = useState(false);
@@ -120,10 +181,11 @@ export default function RunCaylab() {
   });
 
   return (
-    <div style={{ fontFamily: "'Outfit', sans-serif", background: "#0c0c14", color: "#f0f0f8", overflowX: "hidden" }}>
+    <div style={{ fontFamily: "'Outfit', sans-serif", background: "#0c0c14", color: "#f0f0f8", overflowX: "hidden", minWidth: "100vw", boxSizing: "border-box" }}>
       <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,700;0,900;1,700&display=swap" rel="stylesheet" />
       <style>{`
         * { box-sizing: border-box; margin: 0; padding: 0; }
+        html, body { background: #0c0c14; min-height: 100%; width: 100%; }
         html { scroll-behavior: smooth; }
         ::-webkit-scrollbar { width: 4px; } ::-webkit-scrollbar-track { background: #0c0c14; } ::-webkit-scrollbar-thumb { background: #f5a623; border-radius: 2px; }
         .btn-primary { background: #f5a623; color: #0c0c14; border: none; padding: 14px 32px; border-radius: 4px; font-weight: 800; font-size: 15px; cursor: pointer; font-family: 'Outfit', sans-serif; letter-spacing: 0.5px; transition: all 0.2s; }
@@ -156,12 +218,15 @@ export default function RunCaylab() {
 
       {/* ─── HERO ─── */}
       <section id="Home" style={{ minHeight: "100vh", display: "flex", alignItems: "center", position: "relative", overflow: "hidden", paddingTop: 64 }}>
-        {/* Background */}
-        <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse 80% 60% at 60% 40%, #f5a62314 0%, transparent 70%), radial-gradient(ellipse 50% 50% at 20% 80%, #4a9eff0a 0%, transparent 60%)" }} />
-        <div style={{ position: "absolute", top: 80, right: -100, width: 600, height: 600, borderRadius: "50%", border: "1px solid #f5a62311", pointerEvents: "none" }} />
-        <div style={{ position: "absolute", top: 160, right: -40, width: 400, height: 400, borderRadius: "50%", border: "1px solid #f5a62318", pointerEvents: "none" }} />
+        {/* Particles Canvas */}
+        <canvas id="particles-canvas" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", zIndex: 0, pointerEvents: "none" }} />
+        <ParticlesBg />
+        {/* Background glow */}
+        <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse 80% 60% at 60% 40%, #f5a62314 0%, transparent 70%), radial-gradient(ellipse 50% 50% at 20% 80%, #4a9eff0a 0%, transparent 60%)", zIndex: 0 }} />
+        <div style={{ position: "absolute", top: 80, right: -100, width: 600, height: 600, borderRadius: "50%", border: "1px solid #f5a62311", pointerEvents: "none", zIndex: 0 }} />
+        <div style={{ position: "absolute", top: 160, right: -40, width: 400, height: 400, borderRadius: "50%", border: "1px solid #f5a62318", pointerEvents: "none", zIndex: 0 }} />
 
-        <div style={{ maxWidth: 1100, margin: "0 auto", padding: "80px 24px", position: "relative", zIndex: 1 }}>
+        <div style={{ maxWidth: 1100, margin: "0 auto", padding: "80px 24px", position: "relative", zIndex: 2 }}>
           <div style={{ maxWidth: 720 }}>
             <div style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "#f5a62315", border: "1px solid #f5a62333", borderRadius: 100, padding: "6px 16px", marginBottom: 28 }}>
               <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#00c896", display: "inline-block", animation: "pulse 2s infinite" }} />
