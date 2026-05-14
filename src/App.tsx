@@ -79,10 +79,9 @@ function StarRating({ count = 5 }) {
   return <span style={{ color: "#f5a623", letterSpacing: 1, fontSize: 15 }}>{"★".repeat(count)}</span>;
 }
 
-function ParticlesBg() {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+function AuroraBg() {
   useEffect(() => {
-    const canvas = document.getElementById("particles-canvas") as HTMLCanvasElement;
+    const canvas = document.getElementById("aurora-canvas") as HTMLCanvasElement;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
@@ -90,48 +89,105 @@ function ParticlesBg() {
     const resize = () => { canvas.width = canvas.offsetWidth; canvas.height = canvas.offsetHeight; };
     resize();
     window.addEventListener("resize", resize);
-    const TOTAL = 90;
-    const particles = Array.from({ length: TOTAL }, () => ({
-      x: Math.random() * canvas.width,
-      y: Math.random() * canvas.height,
-      r: Math.random() * 2 + 0.5,
-      dx: (Math.random() - 0.5) * 0.4,
-      dy: (Math.random() - 0.5) * 0.4,
-      opacity: Math.random() * 0.6 + 0.2,
-      color: Math.random() > 0.7 ? "#f5a623" : Math.random() > 0.5 ? "#4a9eff" : "#ffffff",
+
+    const stars = Array.from({ length: 120 }, () => ({
+      x: Math.random(), y: Math.random() * 0.6,
+      r: Math.random() * 1.2 + 0.2,
+      opacity: Math.random() * 0.6 + 0.1,
+      twinkle: Math.random() * Math.PI * 2,
     }));
+
+    const bands = [
+      { yBase: 0.28, amp: 0.09, freq: 0.0018, speed: 0.00022, color1: "rgba(0,230,160,", color2: "rgba(0,180,255,", phase: 0 },
+      { yBase: 0.38, amp: 0.07, freq: 0.0022, speed: 0.00018, color1: "rgba(80,100,255,", color2: "rgba(160,0,255,", phase: 1.8 },
+      { yBase: 0.20, amp: 0.06, freq: 0.0015, speed: 0.00014, color1: "rgba(0,255,180,", color2: "rgba(0,220,255,", phase: 3.2 },
+      { yBase: 0.45, amp: 0.05, freq: 0.0025, speed: 0.00026, color1: "rgba(120,60,255,", color2: "rgba(0,160,255,", phase: 0.9 },
+    ];
+
+    let t = 0;
+
+    const drawBand = (band: typeof bands[0]) => {
+      const W = canvas.width, H = canvas.height;
+      const points = 180;
+      const step = W / points;
+
+      for (let pass = 0; pass < 3; pass++) {
+        const opacity = [0.07, 0.13, 0.22][pass];
+        const thickness = [H * 0.28, H * 0.18, H * 0.09][pass];
+
+        ctx.beginPath();
+        for (let i = 0; i <= points; i++) {
+          const x = i * step;
+          const wave1 = Math.sin(x * band.freq + t * band.speed * 60 + band.phase);
+          const wave2 = Math.sin(x * band.freq * 1.7 + t * band.speed * 40 + band.phase + 1.2);
+          const wave3 = Math.sin(x * band.freq * 0.5 + t * band.speed * 25 + band.phase + 2.5);
+          const y = H * band.yBase + (wave1 * 0.5 + wave2 * 0.3 + wave3 * 0.2) * band.amp * H;
+          i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+        }
+        for (let i = points; i >= 0; i--) {
+          const x = i * step;
+          const wave1 = Math.sin(x * band.freq + t * band.speed * 60 + band.phase);
+          const wave2 = Math.sin(x * band.freq * 1.7 + t * band.speed * 40 + band.phase + 1.2);
+          const wave3 = Math.sin(x * band.freq * 0.5 + t * band.speed * 25 + band.phase + 2.5);
+          const y = H * band.yBase + (wave1 * 0.5 + wave2 * 0.3 + wave3 * 0.2) * band.amp * H + thickness;
+          ctx.lineTo(x, y);
+        }
+        ctx.closePath();
+
+        const midX = W * 0.5;
+        const midY = H * band.yBase;
+        const grad = ctx.createLinearGradient(0, midY - thickness, 0, midY + thickness * 1.5);
+        grad.addColorStop(0, band.color1 + "0)");
+        grad.addColorStop(0.3, band.color1 + opacity + ")");
+        grad.addColorStop(0.6, band.color2 + opacity * 0.8 + ")");
+        grad.addColorStop(1, band.color2 + "0)");
+        ctx.fillStyle = grad;
+        ctx.fill();
+      }
+
+      // Bright shimmer line at top of band
+      ctx.beginPath();
+      ctx.setLineDash([]);
+      for (let i = 0; i <= points; i++) {
+        const x = i * step;
+        const wave1 = Math.sin(x * band.freq + t * band.speed * 60 + band.phase);
+        const wave2 = Math.sin(x * band.freq * 1.7 + t * band.speed * 40 + band.phase + 1.2);
+        const wave3 = Math.sin(x * band.freq * 0.5 + t * band.speed * 25 + band.phase + 2.5);
+        const y = H * band.yBase + (wave1 * 0.5 + wave2 * 0.3 + wave3 * 0.2) * band.amp * H;
+        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+      }
+      const shimmerIntensity = 0.5 + 0.5 * Math.sin(t * 0.0008);
+      ctx.strokeStyle = band.color1 + (shimmerIntensity * 0.55) + ")";
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    };
+
     const draw = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      particles.forEach(p => {
-        p.x += p.dx; p.y += p.dy;
-        if (p.x < 0) p.x = canvas.width;
-        if (p.x > canvas.width) p.x = 0;
-        if (p.y < 0) p.y = canvas.height;
-        if (p.y > canvas.height) p.y = 0;
+
+      // Stars
+      stars.forEach(s => {
+        const tw = 0.4 + 0.6 * Math.sin(s.twinkle + t * 0.001);
         ctx.beginPath();
-        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-        ctx.fillStyle = p.color;
-        ctx.globalAlpha = p.opacity;
+        ctx.arc(s.x * canvas.width, s.y * canvas.height, s.r, 0, Math.PI * 2);
+        ctx.fillStyle = "#ffffff";
+        ctx.globalAlpha = s.opacity * tw;
         ctx.fill();
       });
-      // Draw connecting lines between close particles
       ctx.globalAlpha = 1;
-      for (let i = 0; i < particles.length; i++) {
-        for (let j = i + 1; j < particles.length; j++) {
-          const dx = particles[i].x - particles[j].x;
-          const dy = particles[i].y - particles[j].y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          if (dist < 100) {
-            ctx.beginPath();
-            ctx.moveTo(particles[i].x, particles[i].y);
-            ctx.lineTo(particles[j].x, particles[j].y);
-            ctx.strokeStyle = "#f5a623";
-            ctx.globalAlpha = (1 - dist / 100) * 0.12;
-            ctx.lineWidth = 0.5;
-            ctx.stroke();
-          }
-        }
-      }
+
+      // Aurora bands
+      bands.forEach(drawBand);
+
+      // Soft ground glow at bottom
+      const groundGrad = ctx.createLinearGradient(0, canvas.height * 0.75, 0, canvas.height);
+      groundGrad.addColorStop(0, "rgba(0,200,140,0)");
+      groundGrad.addColorStop(0.5, "rgba(0,160,120,0.04)");
+      groundGrad.addColorStop(1, "rgba(0,100,80,0.10)");
+      ctx.fillStyle = groundGrad;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      t += 1;
       animId = requestAnimationFrame(draw);
     };
     draw();
@@ -201,30 +257,49 @@ export default function RunCaylab() {
 
       {/* ─── NAVBAR ─── */}
       <nav style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 100, background: "#0c0c14ee", backdropFilter: "blur(12px)", borderBottom: "1px solid #ffffff0f", padding: "0 24px" }}>
-        <div style={{ maxWidth: 1100, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", height: 64 }}>
-          <div onClick={() => scrollTo("Home")} style={{ cursor: "pointer" }}>
+        <div style={{ maxWidth: 1100, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", height: 64, gap: 12 }}>
+          <div onClick={() => scrollTo("Home")} style={{ cursor: "pointer", flexShrink: 0 }}>
             <span style={{ fontFamily: "'Playfair Display', serif", fontSize: 22, fontWeight: 900, color: "#fff" }}>Run</span>
             <span style={{ fontFamily: "'Playfair Display', serif", fontSize: 22, fontWeight: 900, color: "#f5a623" }}>Caylab</span>
-            <span style={{ fontSize: 11, color: "#666", marginLeft: 8, letterSpacing: 2, fontWeight: 500 }}>.com</span>
           </div>
-          <div style={{ display: "flex", gap: 28, alignItems: "center" }}>
+          {/* Desktop nav */}
+          <div className="desktop-nav" style={{ display: "flex", gap: 24, alignItems: "center", flex: 1, justifyContent: "center" }}>
             {NAV_LINKS.map(l => (
               <button key={l} className={`nav-link${activeNav === l ? " active" : ""}`} onClick={() => scrollTo(l)}>{l}</button>
             ))}
           </div>
-          <button className="btn-primary" style={{ padding: "10px 22px", fontSize: 13 }} onClick={() => scrollTo("Contact")}>Get a Free Audit</button>
+          {/* Mobile swipeable nav */}
+          <div className="mobile-nav" style={{ display: "none", flex: 1, overflowX: "auto", scrollbarWidth: "none", WebkitOverflowScrolling: "touch" } as React.CSSProperties}>
+            <div style={{ display: "flex", gap: 6, paddingRight: 8, width: "max-content" }}>
+              {NAV_LINKS.map(l => (
+                <button key={l} onClick={() => scrollTo(l)} style={{
+                  background: activeNav === l ? "#f5a623" : "#1c1c2e",
+                  border: "none",
+                  borderRadius: 20,
+                  padding: "6px 14px",
+                  fontSize: 12,
+                  fontWeight: activeNav === l ? 700 : 500,
+                  color: activeNav === l ? "#0c0c14" : "#aaa",
+                  cursor: "pointer",
+                  whiteSpace: "nowrap",
+                  fontFamily: "'Outfit', sans-serif",
+                }}>{l}</button>
+              ))}
+            </div>
+          </div>
+          <button className="btn-primary" style={{ padding: "10px 18px", fontSize: 12, flexShrink: 0 }} onClick={() => scrollTo("Contact")}>Free Audit</button>
         </div>
       </nav>
 
       {/* ─── HERO ─── */}
       <section id="Home" style={{ minHeight: "100vh", display: "flex", alignItems: "center", position: "relative", overflow: "hidden", paddingTop: 64 }}>
-        {/* Particles Canvas */}
-        <canvas id="particles-canvas" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", zIndex: 0, pointerEvents: "none" }} />
-        <ParticlesBg />
-        {/* Background glow */}
-        <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse 80% 60% at 60% 40%, #f5a62314 0%, transparent 70%), radial-gradient(ellipse 50% 50% at 20% 80%, #4a9eff0a 0%, transparent 60%)", zIndex: 0 }} />
-        <div style={{ position: "absolute", top: 80, right: -100, width: 600, height: 600, borderRadius: "50%", border: "1px solid #f5a62311", pointerEvents: "none", zIndex: 0 }} />
-        <div style={{ position: "absolute", top: 160, right: -40, width: 400, height: 400, borderRadius: "50%", border: "1px solid #f5a62318", pointerEvents: "none", zIndex: 0 }} />
+        {/* Aurora Canvas */}
+        <canvas id="aurora-canvas" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", zIndex: 0, pointerEvents: "none" }} />
+        <AuroraBg />
+        {/* Overlay to keep text readable */}
+        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(135deg, rgba(12,12,20,0.82) 0%, rgba(12,12,20,0.5) 50%, rgba(12,12,20,0.2) 100%)", zIndex: 1, pointerEvents: "none" }} />
+        <div style={{ position: "absolute", top: 80, right: -100, width: 600, height: 600, borderRadius: "50%", border: "1px solid rgba(245,166,35,0.07)", pointerEvents: "none", zIndex: 1 }} />
+        <div style={{ position: "absolute", top: 160, right: -40, width: 400, height: 400, borderRadius: "50%", border: "1px solid rgba(245,166,35,0.10)", pointerEvents: "none", zIndex: 1 }} />
 
         <div style={{ maxWidth: 1100, margin: "0 auto", padding: "80px 24px", position: "relative", zIndex: 2 }}>
           <div style={{ maxWidth: 720 }}>
@@ -574,21 +649,27 @@ export default function RunCaylab() {
         <div style={{ marginBottom: 16 }}>
           <span style={{ fontFamily: "'Playfair Display', serif", fontSize: 20, fontWeight: 900, color: "#fff" }}>Run</span>
           <span style={{ fontFamily: "'Playfair Display', serif", fontSize: 20, fontWeight: 900, color: "#f5a623" }}>Caylab</span>
-          <span style={{ fontSize: 11, color: "#444", marginLeft: 6, letterSpacing: 2 }}>.com</span>
         </div>
         <div style={{ display: "flex", justifyContent: "center", gap: 24, marginBottom: 20, flexWrap: "wrap" }}>
           {NAV_LINKS.map(l => (
             <button key={l} onClick={() => scrollTo(l)} style={{ background: "none", border: "none", color: "#555", fontSize: 13, cursor: "pointer", fontFamily: "'Outfit', sans-serif" }}>{l}</button>
           ))}
         </div>
-        <p style={{ fontSize: 12, color: "#333" }}>© 2025 RunCaylab.com · Web Design & Google Presence · Edmonton, Alberta</p>
+        <p style={{ fontSize: 12, color: "#333" }}>© 2026 RunCaylab.com · Web Design & Google Presence · Edmonton, Alberta</p>
       </footer>
 
       <style>{`
         @keyframes pulse { 0%,100%{opacity:1}50%{opacity:0.4} }
+        html, body, #root { background: #0c0c14 !important; margin: 0; padding: 0; width: 100%; overflow-x: hidden; }
+        .mobile-nav::-webkit-scrollbar { display: none; }
         @media(max-width:768px){
-          nav > div > div:nth-child(2){display:none}
-          section[id="About"] > div{grid-template-columns:1fr!important}
+          .desktop-nav { display: none !important; }
+          .mobile-nav { display: flex !important; }
+          section[id="About"] > div { grid-template-columns: 1fr !important; }
+        }
+        @media(min-width:769px){
+          .mobile-nav { display: none !important; }
+          .desktop-nav { display: flex !important; }
         }
       `}</style>
     </div>
